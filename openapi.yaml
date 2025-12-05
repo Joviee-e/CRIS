@@ -1,0 +1,113 @@
+openapi: 3.0.1
+info:
+  title: Railway Application Workflow API
+  version: "1.0.0"
+  description: >
+    API specification for Submit → Verify → Approve workflow
+    used in the Railway ID Card & Application system.
+
+servers:
+  - url: http://localhost:5000
+
+paths:
+
+  /api/auth/register:
+    post:
+      summary: Create a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        "201": { description: User created }
+        "400": { description: Already exists }
+
+  /api/auth/login:
+    post:
+      summary: Obtain JWT tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        "200": 
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access: { type: string }
+                  refresh: { type: string }
+        "401": { description: Invalid credentials }
+
+  /api/applications/:
+    post:
+      security:
+        - bearerAuth: []
+      summary: Submit a new application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Application'
+      responses:
+        "201": { description: Created }
+
+  /api/applications/{id}/verify:
+    patch:
+      security:
+        - bearerAuth: []
+      summary: Verify submitted application
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Verified }
+        "400": { description: Invalid state }
+
+  /api/applications/{id}/approve:
+    patch:
+      security:
+        - bearerAuth: []
+      summary: Approve verified application
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Approved }
+        "400": { description: Invalid state }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Application:
+      type: object
+      properties:
+        sr_no: { type: integer }
+        purpose: { type: string }
+        department: { type: string }
+        emp_no: { type: string }
+        emp_name: { type: string }
+        designation: { type: string }
+        remarks: { type: string }

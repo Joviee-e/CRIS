@@ -1,3 +1,4 @@
+# app/routes/auth.py
 from flask import Blueprint, request
 from ..extensions import db
 from ..models import User
@@ -28,7 +29,8 @@ def login():
     if not u or not u.check_password(pwd):
         return {"msg": "bad credentials"}, 401
 
-    access = create_access_token(identity={"id": u.id, "role": u.role})
-    refresh = create_refresh_token(identity={"id": u.id, "role": u.role})
+    # Identity must be a string (user id). Put role into additional claims.
+    access = create_access_token(identity=str(u.id), additional_claims={"role": u.role})
+    refresh = create_refresh_token(identity=str(u.id), additional_claims={"role": u.role})
 
     return {"access": access, "refresh": refresh}
