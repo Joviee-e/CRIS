@@ -33,6 +33,8 @@ class Application(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    attachments = relationship("Attachment", back_populates="application")
+
 
 class ActionLog(db.Model):
     __tablename__ = "action_log"
