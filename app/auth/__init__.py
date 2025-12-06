@@ -1,3 +1,4 @@
+﻿
 # app/__init__.py
 """
 Application package initializer and app factory.
@@ -24,7 +25,11 @@ def create_app(config_object=None):
 
     # load config
     if config_object:
-        app.config.from_object(config_object)
+        # allow either a config object or a plain dict
+        if isinstance(config_object, dict):
+            app.config.update(config_object)
+        else:
+            app.config.from_object(config_object)
     else:
         app.config.from_object(Config)
 
@@ -81,19 +86,26 @@ def create_app(config_object=None):
     # ------------------------------
     # AUTO-CREATE TABLES FOR TESTING
     # ------------------------------
-    # When running tests (TESTING=True) or when using in-memory sqlite, create
-    # tables automatically so pytest clients run against a working schema.
-    # This is intentionally guarded so it doesn't affect production or normal dev.
+    # Create tables automatically under test runs so pytest won't fail
+    # when tests call create_app() before injecting test config.
+    #
+    # Conditions we consider "test mode":
+    #  - app.config["TESTING"] is truthy
+    #  - using in-memory sqlite (sqlite:///:memory:)
+    #  - running under pytest (env var PYTEST_CURRENT_TEST present)
     try:
-        testing = bool(app.config.get("TESTING"))
+        testing_flag = bool(app.config.get("TESTING"))
         db_uri = app.config.get("SQLALCHEMY_DATABASE_URI") or ""
         use_in_memory_sqlite = isinstance(db_uri, str) and db_uri.startswith("sqlite:///:memory:")
-        if testing or use_in_memory_sqlite:
+        running_under_pytest = os.getenv("PYTEST_CURRENT_TEST") is not None
+
+        if testing_flag or use_in_memory_sqlite or running_under_pytest:
             with app.app_context():
                 db.create_all()
-                app.logger.debug("db.create_all() executed for testing/in-memory SQLite")
+                app.logger.debug("db.create_all() executed for test mode (TESTING=%s, in_memory=%s, pytest=%s)",
+                                 testing_flag, use_in_memory_sqlite, running_under_pytest)
     except Exception:
-        # never crash the app factory for test convenience; log and continue
+        # don't let table creation break the app factory — log and continue
         app.logger.exception("Auto-create tables failed (continuing)")
 
     return app
