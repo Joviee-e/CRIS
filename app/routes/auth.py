@@ -41,7 +41,15 @@ def register():
         return jsonify({"msg": "db error"}), 500
 
     tokens = make_tokens(user)
-    return jsonify({"access_token": tokens["access_token"], "refresh_token": tokens["refresh_token"], "user": user.to_dict()}), 201
+    # Provide both long and short token keys for compatibility with tests / clients
+    response = {
+        "access_token": tokens["access_token"],
+        "refresh_token": tokens["refresh_token"],
+        "access": tokens["access_token"],
+        "refresh": tokens["refresh_token"],
+        "user": user.to_dict(),
+    }
+    return jsonify(response), 201
 
 
 # LOGIN
@@ -58,7 +66,14 @@ def login():
         return jsonify({"msg": "invalid credentials"}), 401
 
     tokens = make_tokens(user)
-    return jsonify({"access_token": tokens["access_token"], "refresh_token": tokens["refresh_token"], "user": user.to_dict()}), 200
+    response = {
+        "access_token": tokens["access_token"],
+        "refresh_token": tokens["refresh_token"],
+        "access": tokens["access_token"],
+        "refresh": tokens["refresh_token"],
+        "user": user.to_dict(),
+    }
+    return jsonify(response), 200
 
 
 # REFRESH: accepts refresh token, returns new access token
@@ -70,7 +85,8 @@ def refresh():
     role = get_role_from_token_or_db(get_jwt(), identity)
     # create new access token including role claim
     access_token = create_access_token(identity=identity, additional_claims={"role": role})
-    return jsonify({"access_token": access_token}), 200
+    # return both keys for compatibility
+    return jsonify({"access_token": access_token, "access": access_token}), 200
 
 
 # Admin endpoints for promote/demote

@@ -1,4 +1,4 @@
-# app/__init__.py
+﻿# app/__init__.py
 """
 Application package initializer and app factory.
 """
@@ -24,6 +24,7 @@ def create_app(config_object=None):
 
     # load config
     if config_object:
+        # config_object may be a class or mapping (tests pass a class)
         app.config.from_object(config_object)
     else:
         app.config.from_object(Config)
@@ -78,23 +79,34 @@ def create_app(config_object=None):
     def health():
         return {"status": "ok"}
 
-    # ------------------------------
-    # AUTO-CREATE TABLES FOR TESTING
-    # ------------------------------
-    # When running tests (TESTING=True) or when using in-memory sqlite, create
-    # tables automatically so pytest clients run against a working schema.
-    # This is intentionally guarded so it doesn't affect production or normal dev.
+    # --- TESTING helper: create tables automatically for in-memory testing DBs ---
+    # Ensure this covers both ways tests configure the app:
+    # 1) Tests pass a TestConfig to create_app(TestConfig) -> config_object set
+    # 2) Tests call create_app() then app.config.update(...) -> SQLALCHEMY_DATABASE_URI updated later,
+    #    but those tests usually create tables themselves in fixtures; we only auto-create here
+    #    when the factory already sees TESTING or detects an in-memory DB config_object.
     try:
-        testing = bool(app.config.get("TESTING"))
-        db_uri = app.config.get("SQLALCHEMY_DATABASE_URI") or ""
-        use_in_memory_sqlite = isinstance(db_uri, str) and db_uri.startswith("sqlite:///:memory:")
-        if testing or use_in_memory_sqlite:
+        should_create = False
+
+        # If a config_object was passed and it signals testing, create
+        if config_object and getattr(config_object, "TESTING", False):
+            should_create = True
+
+        # Or if the app config is already testing (covers create_app(TestConfig) or explicit TESTING)
+        if app.config.get("TESTING"):
+            should_create = True
+
+        # Also create if the DB is clearly an in-memory sqlite URI (convenience)
+        db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "") or ""
+        if db_uri.strip().startswith("sqlite:///:memory:"):
+            should_create = True
+
+        if should_create:
             with app.app_context():
                 db.create_all()
-                app.logger.debug("db.create_all() executed for testing/in-memory SQLite")
     except Exception:
-        # never crash the app factory for test convenience; log and continue
-        app.logger.exception("Auto-create tables failed (continuing)")
+        # log but do not crash the factory — keep behavior non-fatal
+        app.logger.exception("Failed to create DB tables during TESTING/init-time helper")
 
     return app
 
