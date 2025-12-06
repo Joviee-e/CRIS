@@ -1,97 +1,14 @@
-openapi: 3.0.1
+openapi: 3.1.0
 info:
-  title: Railway Application Workflow API
+  title: Western Railway — ID Verification Backend API
   version: "1.0.0"
-  description: >
-    API specification for Submit → Verify → Approve workflow
-    used in the Railway ID Card & Application system.
+  description: |
+    REST API for ID verification workflow (registration, login, submit applications,
+    verify and approve). Implements role-based actions via JWT claims.
 
 servers:
   - url: http://localhost:5000
-
-paths:
-
-  /api/auth/register:
-    post:
-      summary: Create a new user account
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email: { type: string }
-                password: { type: string }
-      responses:
-        "201": { description: User created }
-        "400": { description: Already exists }
-
-  /api/auth/login:
-    post:
-      summary: Obtain JWT tokens
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email: { type: string }
-                password: { type: string }
-      responses:
-        "200": 
-          description: Successful login
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  access: { type: string }
-                  refresh: { type: string }
-        "401": { description: Invalid credentials }
-
-  /api/applications/:
-    post:
-      security:
-        - bearerAuth: []
-      summary: Submit a new application
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Application'
-      responses:
-        "201": { description: Created }
-
-  /api/applications/{id}/verify:
-    patch:
-      security:
-        - bearerAuth: []
-      summary: Verify submitted application
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200": { description: Verified }
-        "400": { description: Invalid state }
-
-  /api/applications/{id}/approve:
-    patch:
-      security:
-        - bearerAuth: []
-      summary: Approve verified application
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200": { description: Approved }
-        "400": { description: Invalid state }
+    description: Local development server
 
 components:
   securitySchemes:
@@ -101,13 +18,232 @@ components:
       bearerFormat: JWT
 
   schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        msg:
+          type: string
+      example:
+        msg: "bad credentials"
+
+    UserRegister:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      example:
+        email: "user@example.com"
+        password: "12345678"
+
+    UserLogin:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      example:
+        email: "user@example.com"
+        password: "12345678"
+
+    TokenResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+      example:
+        access: "jwt-access-token"
+        refresh: "jwt-refresh-token"
+
     Application:
       type: object
       properties:
-        sr_no: { type: integer }
-        purpose: { type: string }
-        department: { type: string }
-        emp_no: { type: string }
-        emp_name: { type: string }
-        designation: { type: string }
-        remarks: { type: string }
+        id:
+          type: string
+        sr_no:
+          type: integer
+        purpose:
+          type: string
+        department:
+          type: string
+        emp_no:
+          type: string
+        emp_name:
+          type: string
+        designation:
+          type: string
+        remarks:
+          type: string
+        status:
+          type: string
+          description: "submitted | verified | approved"
+      example:
+        sr_no: 42
+        purpose: "ID card verification"
+        department: "Operations"
+        emp_no: "EMP123"
+        emp_name: "Rahul Sharma"
+        designation: "Clerk"
+        remarks: "Urgent"
+        status: "submitted"
+
+paths:
+
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                example:
+                  status: "ok"
+
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRegister"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                example:
+                  msg: "created"
+        "400":
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/login:
+    post:
+      summary: Login and receive JWT tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserLogin"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/applications/:
+    post:
+      summary: Submit a new application (requires login)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Application"
+      responses:
+        "201":
+          description: Application submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                example:
+                  id: "generated-app-id"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/applications/{id}/verify:
+    patch:
+      summary: Verify application (admin or verifier role)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                example:
+                  msg: "verified"
+        "400":
+          description: Cannot verify (invalid state)
+        "404":
+          description: Application not found
+
+  /api/applications/{id}/approve:
+    patch:
+      summary: Approve application (admin or approver role)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                example:
+                  msg: "approved"
+        "400":
+          description: Cannot approve (invalid state)
+        "404":
+          description: Application not found
