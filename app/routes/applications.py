@@ -9,6 +9,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..models import Application
 from ..extensions import db
 
+
 app_bp = Blueprint("applications_bp", __name__)
 
 

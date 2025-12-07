@@ -33,6 +33,7 @@ class User(db.Model):
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
     
+    
     def set_password(self, raw_password: str) -> None:
         """
         Hash and set the user's password.
