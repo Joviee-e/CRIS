@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey
 from sqlalchemy.orm import relationship
-
+from werkzeug.security import generate_password_hash, check_password_hash
 from app.extensions import db
 
 
@@ -32,6 +32,24 @@ class User(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
+    
+    def set_password(self, raw_password: str) -> None:
+        """
+        Hash and set the user's password.
+        """
+        if raw_password is None:
+            raise ValueError("Password cannot be None")
+        # method uses pbkdf2:sha256 by default via werkzeug
+        self.password_hash = generate_password_hash(raw_password)
+
+    def check_password(self, raw_password: str) -> bool:
+        """
+        Verify provided password against stored hash.
+        """
+        if not self.password_hash:
+            return False
+        return check_password_hash(self.password_hash, raw_password)
+
 
 
 # -----------------------

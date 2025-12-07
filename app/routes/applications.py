@@ -4,6 +4,10 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
 from app.models import Application, ActionLog, User
 from app.services.audit import create_action_log
+from flask import jsonify, request, Blueprint
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from ..models import Application
+from ..extensions import db
 
 app_bp = Blueprint("applications_bp", __name__)
 
@@ -174,3 +178,91 @@ def get_logs(id):
         .all()
     )
     return jsonify({"logs": [log.to_dict() for log in logs]}), 200
+
+
+# -------------------------
+# New endpoints added below
+# -------------------------
+
+@app_bp.route("/", methods=["GET"])
+@jwt_required()
+def list_applications():
+    """
+    List applications with optional filters:
+      - status
+      - department
+      - page, per_page (pagination)
+    Returns paginated list of application dicts.
+    """
+    status = request.args.get("status", type=str)
+    department = request.args.get("department", type=str)
+    try:
+        page = int(request.args.get("page", 1))
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        per_page = int(request.args.get("per_page", 20))
+    except (TypeError, ValueError):
+        per_page = 20
+
+    q = Application.query
+    if status:
+        q = q.filter_by(status=status)
+    if department:
+        q = q.filter_by(department=department)
+
+    pag = q.order_by(Application.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+
+    items = []
+    for a in pag.items:
+        # prefer model serializer if present
+        try:
+            items.append(a.to_dict())
+        except Exception:
+            items.append({
+                "id": a.id,
+                "sr_no": a.sr_no,
+                "purpose": a.purpose,
+                "department": a.department,
+                "emp_no": a.emp_no,
+                "emp_name": a.emp_name,
+                "designation": getattr(a, "designation", None),
+                "remarks": getattr(a, "remarks", None),
+                "status": getattr(a, "status", None),
+                "created_at": getattr(a, "created_at", None).isoformat() if getattr(a, "created_at", None) else None,
+            })
+
+    return jsonify({
+        "items": items,
+        "page": pag.page,
+        "per_page": pag.per_page,
+        "total": pag.total
+    }), 200
+
+
+@app_bp.route("/<id>", methods=["GET"])
+@jwt_required()
+def get_application(id):
+    """
+    Get a single application by id and return its dict representation.
+    """
+    a = Application.query.get(id)
+    if not a:
+        return jsonify({"msg": "not found"}), 404
+
+    try:
+        return jsonify(a.to_dict()), 200
+    except Exception:
+        payload = {
+            "id": a.id,
+            "sr_no": a.sr_no,
+            "purpose": a.purpose,
+            "department": a.department,
+            "emp_no": a.emp_no,
+            "emp_name": a.emp_name,
+            "designation": getattr(a, "designation", None),
+            "remarks": getattr(a, "remarks", None),
+            "status": getattr(a, "status", None),
+            "created_at": getattr(a, "created_at", None).isoformat() if getattr(a, "created_at", None) else None,
+        }
+        return jsonify(payload), 200
