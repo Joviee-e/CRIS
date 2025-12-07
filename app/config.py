@@ -20,3 +20,7 @@ class Config:
     }
 
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000")
+    RATELIMIT_STORAGE_URI = "memory://"   # explicit - ok for dev only
+    # JWT defaults
+    JWT_ACCESS_TOKEN_EXPIRES_MINUTES = 15
+    JWT_REFRESH_TOKEN_EXPIRES_DAYS = 7

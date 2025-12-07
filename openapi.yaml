@@ -10,52 +10,111 @@ servers:
   - url: http://localhost:5000
 
 paths:
-
+  # --- Auth endpoints ---
   /api/auth/register:
     post:
       summary: Create a new user account
+      tags:
+        - Auth
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required:
+                - email
+                - password
               properties:
-                email: { type: string }
-                password: { type: string }
+                email:
+                  type: string
+                password:
+                  type: string
       responses:
-        "201": { description: User created }
-        "400": { description: Already exists }
-
-  /api/auth/login:
-    post:
-      summary: Obtain JWT tokens
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email: { type: string }
-                password: { type: string }
-      responses:
-        "200": 
-          description: Successful login
+        "201":
+          description: User created — returns access & refresh tokens and user
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  access: { type: string }
-                  refresh: { type: string }
-        "401": { description: Invalid credentials }
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  user:
+                    type: object
+        "400":
+          description: Missing fields
+        "409":
+          description: User already exists
 
-  /api/applications/:
+  /api/auth/login:
     post:
+      summary: Obtain JWT tokens
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Successful login — returns access & refresh tokens and user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  user:
+                    type: object
+        "400":
+          description: Missing fields
+        "401":
+          description: Invalid credentials
+
+  /api/auth/refresh:
+    post:
+      summary: Exchange refresh token for a new access token
+      tags:
+        - Auth
       security:
         - bearerAuth: []
+      responses:
+        "200":
+          description: New access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+        "401":
+          description: Invalid or expired refresh token
+
+  # --- Application workflow endpoints ---
+  /api/applications/:
+    post:
       summary: Submit a new application
+      tags:
+        - Applications
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -63,35 +122,115 @@ paths:
             schema:
               $ref: '#/components/schemas/Application'
       responses:
-        "201": { description: Created }
+        "201":
+          description: Created
+        "400":
+          description: Invalid input
 
   /api/applications/{id}/verify:
     patch:
+      summary: Verify submitted application
+      tags:
+        - Applications
       security:
         - bearerAuth: []
-      summary: Verify submitted application
       parameters:
         - name: id
           in: path
           required: true
-          schema: { type: string }
+          schema:
+            type: string
       responses:
-        "200": { description: Verified }
-        "400": { description: Invalid state }
+        "200":
+          description: Verified
+        "400":
+          description: Invalid state
+        "404":
+          description: Not found
 
   /api/applications/{id}/approve:
     patch:
+      summary: Approve verified application
+      tags:
+        - Applications
       security:
         - bearerAuth: []
-      summary: Approve verified application
       parameters:
         - name: id
           in: path
           required: true
-          schema: { type: string }
+          schema:
+            type: string
       responses:
-        "200": { description: Approved }
-        "400": { description: Invalid state }
+        "200":
+          description: Approved
+        "400":
+          description: Invalid state
+        "404":
+          description: Not found
+
+  # --- Admin endpoints ---
+  /api/admin/promote:
+    post:
+      summary: Promote a user (admin only)
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - role
+              properties:
+                user_id:
+                  type: string
+                role:
+                  type: string
+      responses:
+        "200":
+          description: Role updated
+        "400":
+          description: Missing fields
+        "403":
+          description: Forbidden
+        "404":
+          description: User not found
+
+  /api/admin/demote:
+    post:
+      summary: Demote a user (admin only)
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - role
+              properties:
+                user_id:
+                  type: string
+                role:
+                  type: string
+      responses:
+        "200":
+          description: Role updated
+        "400":
+          description: Missing fields
+        "403":
+          description: Forbidden
+        "404":
+          description: User not found
 
 components:
   securitySchemes:
@@ -103,11 +242,32 @@ components:
   schemas:
     Application:
       type: object
+      required:
+        - sr_no
+        - purpose
+        - department
+        - emp_no
+        - emp_name
       properties:
-        sr_no: { type: integer }
-        purpose: { type: string }
-        department: { type: string }
-        emp_no: { type: string }
-        emp_name: { type: string }
-        designation: { type: string }
-        remarks: { type: string }
+        sr_no:
+          type: integer
+        purpose:
+          type: string
+        department:
+          type: string
+        emp_no:
+          type: string
+        emp_name:
+          type: string
+        designation:
+          type: string
+        remarks:
+          type: string
+
+tags:
+  - name: Auth
+    description: Authentication endpoints (register, login, refresh)
+  - name: Applications
+    description: Submit / Verify / Approve application endpoints
+  - name: Admin
+    description: Admin-only management endpoints (promote/demote users)

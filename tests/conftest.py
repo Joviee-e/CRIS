@@ -22,9 +22,11 @@ def app():
         "JWT_SECRET_KEY": "test-secret",
         "CORS_ORIGINS": "http://localhost:3000"
     }
+    # create app then apply test config (matches how some tests use the factory)
     app = create_app()
     app.config.update(config)
 
+    # push app context for session lifetime
     ctx = app.app_context()
     ctx.push()
     yield app
@@ -32,11 +34,17 @@ def app():
 
 @pytest.fixture(scope="session")
 def client(app):
+    """
+    Return a test client. Ensure DB tables exist for tests that use only `client`
+    and do not directly request the `db` fixture.
+    """
+    # make sure tables exist (safe no-op if already created)
+    _db.create_all()
     return app.test_client()
 
 @pytest.fixture(scope="session")
 def db(app):
-    # create all tables for tests
+    # create all tables for tests that explicitly depend on db fixture
     _db.create_all()
     yield _db
     _db.session.remove()
