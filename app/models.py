@@ -108,7 +108,8 @@ class ActionLog(db.Model):
 class Attachment(db.Model):
     __tablename__ = "attachments"
 
-    id = Column(Integer, primary_key=True, index=True)
+    # Use UUID string primary key for Oracle-friendly, consistent IDs
+    id = Column(String(36), primary_key=True, default=gen_uuid, unique=True, nullable=False, index=True)
     application_id = Column(String(36), ForeignKey("applications.id"), nullable=False, index=True)
     filename = Column(String(255), nullable=False)
     mime_type = Column(String(100), nullable=False)
