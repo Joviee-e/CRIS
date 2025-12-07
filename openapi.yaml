@@ -134,6 +134,17 @@ paths:
         - Applications
       security:
         - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                comment:
+                  type: string
       parameters:
         - name: id
           in: path
@@ -155,6 +166,17 @@ paths:
         - Applications
       security:
         - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                comment:
+                  type: string
       parameters:
         - name: id
           in: path
@@ -168,6 +190,49 @@ paths:
           description: Invalid state
         "404":
           description: Not found
+
+  /api/applications/{id}/logs:
+    get:
+      summary: Get action logs for an application
+      tags:
+        - Applications
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of action logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        application_id:
+                          type: string
+                        action:
+                          type: string
+                        actor_id:
+                          type: string
+                        actor_role:
+                          type: string
+                        comment:
+                          type: string
+                        created_at:
+                          type: string
+        "404":
+          description: Application not found
 
   # --- Admin endpoints ---
   /api/admin/promote:

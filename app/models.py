@@ -48,7 +48,8 @@ class Application(db.Model):
     emp_name = Column(String(255), nullable=False)
     designation = Column(String(255), nullable=True)
     remarks = Column(Text, nullable=True)
-    status = Column(String(50), nullable=False, default="pending")
+    # initial state is "submitted" for the workflow
+    status = Column(String(50), nullable=False, default="submitted")
     created_by = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -92,11 +93,14 @@ class ActionLog(db.Model):
     actor = relationship("User", lazy="joined")
 
     def to_dict(self):
+        # actor_role is derived from the related User (no schema change needed)
+        actor_role = self.actor.role if self.actor else None
         return {
             "id": self.id,
             "application_id": self.application_id,
             "action": self.action,
             "actor_id": self.actor_id,
+            "actor_role": actor_role,
             "comment": self.comment,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
