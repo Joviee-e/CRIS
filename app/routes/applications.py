@@ -1,8 +1,8 @@
 # app/routes/applications.py
-from flask import Blueprint, request
+from flask import Blueprint, request, jsonify
 from ..extensions import db
-from ..models import Application, ActionLog
-from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from ..models import Application, ActionLog, Attachment
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils import role_required
 
 app_bp = Blueprint("applications", __name__)
@@ -22,6 +22,7 @@ def submit():
 
     return {"id": app_obj.id}, 201
 
+
 @app_bp.route("/<id>/verify", methods=["PATCH"])
 @jwt_required()
 @role_required("admin", "verifier")
@@ -40,7 +41,8 @@ def verify(id):
 
     return {"msg": "verified"}
 
-@app_bp.route("/<id>/approve", methods=["PATCH"])
+
+@app_bp.route("/<int:id>/approve", methods=["PATCH"])
 @jwt_required()
 @role_required("admin", "approver")
 def approve(id):
@@ -56,4 +58,27 @@ def approve(id):
     db.session.add(log)
     db.session.commit()
 
-    return {"msg": "approved"}
+    return {"msg": "approved"},200
+
+
+# ==========================================================
+#  GET /api/applications/<id>/attachments  (FOR TESTS)
+# ==========================================================
+@app_bp.route("/<int:id>/attachments", methods=["GET"])
+@jwt_required()
+def get_attachments_for_application(id):
+    app_obj = Application.query.get_or_404(id)
+
+    attachments = Attachment.query.filter_by(application_id=id).all()
+    result = []
+    for a in attachments:
+        result.append({
+            "id": a.id,
+            "filename": a.filename,
+            "mime_type": a.mime_type,
+            "size": a.size,
+            "created_at": a.created_at.isoformat(),
+            "download_url": f"/uploads/{a.filename}",
+        })
+
+    return jsonify({"attachments": result}), 200
