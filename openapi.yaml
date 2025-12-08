@@ -1,0 +1,359 @@
+openapi: 3.0.1
+info:
+  title: Railway Application Workflow API
+  version: "1.0.0"
+  description: >
+    API specification for Submit → Verify → Approve workflow
+    used in the Railway ID Card & Application system.
+
+servers:
+  - url: http://localhost:5000
+
+paths:
+  # --- Health endpoint ---
+  /health:
+    get:
+      summary: Health check
+      tags:
+        - Health
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+              example:
+                status: "ok"
+
+  # --- Auth endpoints ---
+  /api/auth/register:
+    post:
+      summary: Create a new user account
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "201":
+          description: User created — returns access & refresh tokens and user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  user:
+                    type: object
+        "400":
+          description: Missing fields
+        "409":
+          description: User already exists
+
+  /api/auth/login:
+    post:
+      summary: Obtain JWT tokens
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Successful login — returns access & refresh tokens and user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  user:
+                    type: object
+        "400":
+          description: Missing fields
+        "401":
+          description: Invalid credentials
+
+  /api/auth/refresh:
+    post:
+      summary: Exchange refresh token for a new access token
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: New access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+        "401":
+          description: Invalid or expired refresh token
+
+  # --- Application workflow endpoints ---
+  /api/applications/:
+    post:
+      summary: Submit a new application
+      tags:
+        - Applications
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Application'
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Invalid input
+
+  /api/applications/{id}/verify:
+    patch:
+      summary: Verify submitted application
+      tags:
+        - Applications
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                comment:
+                  type: string
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Verified
+        "400":
+          description: Invalid state
+        "404":
+          description: Not found
+
+  /api/applications/{id}/approve:
+    patch:
+      summary: Approve verified application
+      tags:
+        - Applications
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                comment:
+                  type: string
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Approved
+        "400":
+          description: Invalid state
+        "404":
+          description: Not found
+
+  /api/applications/{id}/logs:
+    get:
+      summary: Get action logs for an application
+      tags:
+        - Applications
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of action logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        application_id:
+                          type: string
+                        action:
+                          type: string
+                        actor_id:
+                          type: string
+                        actor_role:
+                          type: string
+                        comment:
+                          type: string
+                        created_at:
+                          type: string
+        "404":
+          description: Application not found
+
+  # --- Admin endpoints ---
+  /api/admin/promote:
+    post:
+      summary: Promote a user (admin only)
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - role
+              properties:
+                user_id:
+                  type: string
+                role:
+                  type: string
+      responses:
+        "200":
+          description: Role updated
+        "400":
+          description: Missing fields
+        "403":
+          description: Forbidden
+        "404":
+          description: User not found
+
+  /api/admin/demote:
+    post:
+      summary: Demote a user (admin only)
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - role
+              properties:
+                user_id:
+                  type: string
+                role:
+                  type: string
+      responses:
+        "200":
+          description: Role updated
+        "400":
+          description: Missing fields
+        "403":
+          description: Forbidden
+        "404":
+          description: User not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Application:
+      type: object
+      required:
+        - sr_no
+        - purpose
+        - department
+        - emp_no
+        - emp_name
+      properties:
+        sr_no:
+          type: integer
+        purpose:
+          type: string
+        department:
+          type: string
+        emp_no:
+          type: string
+        emp_name:
+          type: string
+        designation:
+          type: string
+        remarks:
+          type: string
+
+tags:
+  - name: Auth
+    description: Authentication endpoints (register, login, refresh)
+  - name: Applications
+    description: Submit / Verify / Approve application endpoints
+  - name: Admin
+    description: Admin-only management endpoints (promote/demote users)
+  - name: Health
+    description: Service health check endpoint

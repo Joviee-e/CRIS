@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+
+# Environment files
+.env
+.env.*
+
+# SQLite DB files
+*.db
+
+# Migrations cache
+migrations/versions/__pycache__/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE settings
+.vscode/
+.idea/
+
+# Uploads (local dev)
+uploads/
+
+# Compiled
+*.so
+*.dll
+*.dylib
