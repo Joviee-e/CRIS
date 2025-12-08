@@ -10,6 +10,25 @@ servers:
   - url: http://localhost:5000
 
 paths:
+  # --- Health endpoint ---
+  /health:
+    get:
+      summary: Health check
+      tags:
+        - Health
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+              example:
+                status: "ok"
+
   # --- Auth endpoints ---
   /api/auth/register:
     post:
@@ -336,3 +355,5 @@ tags:
     description: Submit / Verify / Approve application endpoints
   - name: Admin
     description: Admin-only management endpoints (promote/demote users)
+  - name: Health
+    description: Service health check endpoint
